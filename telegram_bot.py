@@ -12,6 +12,8 @@ Telegram Bot with comprehensive features:
 import logging
 import os
 import sqlite3
+import shutil
+import requests
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -66,6 +68,8 @@ class TelegramBot:
                 file_size INTEGER,
                 telegram_file_id TEXT,
                 upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                backup_path TEXT,
+                backup_date TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users (user_id)
             )
         ''')
@@ -114,6 +118,8 @@ class TelegramBot:
         self.application.add_handler(CommandHandler("create_poll", self.create_poll_command))
         self.application.add_handler(CommandHandler("view_database", self.view_database_command))
         self.application.add_handler(CommandHandler("admin_stats", self.admin_stats_command))
+        self.application.add_handler(CommandHandler("backup", self.backup_command))
+        self.application.add_handler(CommandHandler("backup_file", self.backup_file_command))
         
         # Message handlers
         self.application.add_handler(MessageHandler(filters.PHOTO, self.handle_photo))
@@ -609,6 +615,11 @@ phone: your_phone_number
         elif query.data.startswith("delete_"):
             file_id = query.data.split("_")[1]
             await self.delete_file(update, context, file_id)
+        elif query.data.startswith("backup_"):
+            file_id = query.data.split("_")[1]
+            await self.backup_single_file(update, context, file_id)
+        elif query.data == "backup_all":
+            await self.backup_all_files(update, context)
     
     async def send_stored_photo(self, update: Update, context: ContextTypes.DEFAULT_TYPE, file_id: str):
         """Send a stored photo"""
@@ -661,6 +672,126 @@ phone: your_phone_number
             
         except Exception as e:
             await update.callback_query.edit_message_text(f"❌ خطا در حذف فایل: {str(e)}")
+    
+    async def backup_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /backup command"""
+        user_id = update.effective_user.id
+        files = self.get_user_files(user_id)
+        
+        if not files:
+            await update.message.reply_text("📭 هیچ فایلی برای بکاپ وجود ندارد.")
+            return
+        
+        text = "💾 انتخاب فایل برای بکاپ:\n\n"
+        keyboard = []
+        
+        for i, file in enumerate(files[:10], 1):  # Limit to 10 files
+            text += f"{i}. 📄 {file['file_name']}\n"
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"💾 بکاپ {file['file_name'][:15]}...",
+                    callback_data=f"backup_{file['file_id']}"
+                )
+            ])
+        
+        keyboard.append([InlineKeyboardButton("💾 بکاپ همه فایل‌ها", callback_data="backup_all")])
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(text, reply_markup=reply_markup)
+    
+    async def backup_file_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /backup_file command with file ID"""
+        if not context.args:
+            await update.message.reply_text("❌ لطفاً شناسه فایل را وارد کنید.\nمثال: /backup_file <file_id>")
+            return
+        
+        file_id = context.args[0]
+        await self.backup_single_file(update, context, file_id)
+    
+    async def backup_single_file(self, update: Update, context: ContextTypes.DEFAULT_TYPE, file_id: str):
+        """Backup a single file"""
+        try:
+            # Get file info from database
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM files WHERE telegram_file_id = ?', (file_id,))
+            file_data = cursor.fetchone()
+            conn.close()
+            
+            if not file_data:
+                await update.message.reply_text("❌ فایل یافت نشد.")
+                return
+            
+            # Get file from Telegram
+            file_info = await context.bot.get_file(file_id)
+            file_url = file_info.file_path
+            
+            # Download file
+            response = requests.get(f"https://api.telegram.org/file/bot{self.token}/{file_url}")
+            if response.status_code != 200:
+                await update.message.reply_text("❌ خطا در دانلود فایل از تلگرام.")
+                return
+            
+            # Create backup directory
+            backup_dir = "/app/backups/files"
+            os.makedirs(backup_dir, exist_ok=True)
+            
+            # Save file
+            file_name = file_data[2]  # file_name
+            safe_filename = "".join(c for c in file_name if c.isalnum() or c in "._- ")
+            backup_path = os.path.join(backup_dir, f"{file_id}_{safe_filename}")
+            
+            with open(backup_path, 'wb') as f:
+                f.write(response.content)
+            
+            # Update database with backup info
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE files 
+                SET backup_path = ?, backup_date = ?
+                WHERE telegram_file_id = ?
+            ''', (backup_path, datetime.now().isoformat(), file_id))
+            conn.commit()
+            conn.close()
+            
+            await update.message.reply_text(
+                f"✅ فایل با موفقیت بکاپ شد!\n"
+                f"📄 نام فایل: {file_name}\n"
+                f"💾 مسیر بکاپ: {backup_path}\n"
+                f"📊 حجم: {len(response.content)} بایت"
+            )
+            
+        except Exception as e:
+            await update.message.reply_text(f"❌ خطا در بکاپ فایل: {str(e)}")
+    
+    async def backup_all_files(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Backup all user files"""
+        user_id = update.effective_user.id
+        files = self.get_user_files(user_id)
+        
+        if not files:
+            await update.callback_query.edit_message_text("📭 هیچ فایلی برای بکاپ وجود ندارد.")
+            return
+        
+        await update.callback_query.edit_message_text("⏳ در حال بکاپ فایل‌ها... لطفاً صبر کنید.")
+        
+        success_count = 0
+        error_count = 0
+        
+        for file in files:
+            try:
+                await self.backup_single_file(update, context, file['file_id'])
+                success_count += 1
+            except Exception as e:
+                error_count += 1
+                logger.error(f"Error backing up file {file['file_id']}: {str(e)}")
+        
+        await update.callback_query.edit_message_text(
+            f"✅ بکاپ کامل شد!\n"
+            f"✅ موفق: {success_count} فایل\n"
+            f"❌ خطا: {error_count} فایل"
+        )
     
     def run(self):
         """Start the bot"""
