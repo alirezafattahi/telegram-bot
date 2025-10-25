@@ -383,18 +383,29 @@ phone: your_phone_number
         
         if files:
             text = "📁 فایل‌های شما:\n\n"
-            for i, file in enumerate(files, 1):
+            keyboard = []
+            
+            for i, file in enumerate(files[:10], 1):  # Limit to 10 files
                 text += f"{i}. 📄 {file['file_name']}\n"
                 text += f"   📊 حجم: {file['file_size']} بایت\n"
                 text += f"   📅 تاریخ: {file['upload_date']}\n\n"
+                
+                # Add individual buttons for each file
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"📥 دانلود {file['file_name'][:15]}...",
+                        callback_data=f"download_{file['file_id']}"
+                    ),
+                    InlineKeyboardButton(
+                        f"🗑️ حذف {file['file_name'][:15]}...",
+                        callback_data=f"delete_{file['file_id']}"
+                    )
+                ])
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
         else:
             text = "📭 هیچ فایلی آپلود نکرده‌اید."
-        
-        keyboard = [
-            [InlineKeyboardButton("📥 دانلود فایل", callback_data="download_file")],
-            [InlineKeyboardButton("🗑️ حذف فایل", callback_data="delete_file")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
+            reply_markup = None
         
         await update.message.reply_text(text, reply_markup=reply_markup)
     
@@ -592,8 +603,6 @@ phone: your_phone_number
         elif query.data.startswith("send_photo_"):
             file_id = query.data.split("_")[2]
             await self.send_stored_photo(update, context, file_id)
-        elif query.data == "download_file":
-            await self.show_download_options(update, context)
         elif query.data.startswith("download_"):
             file_id = query.data.split("_")[1]
             await self.download_file(update, context, file_id)
@@ -612,31 +621,6 @@ phone: your_phone_number
         except Exception as e:
             await query.edit_message_text(f"❌ خطا در ارسال عکس: {str(e)}")
     
-    async def show_download_options(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Show download options for user files"""
-        user_id = update.effective_user.id
-        files = self.get_user_files(user_id)
-        
-        if not files:
-            await update.callback_query.edit_message_text("📭 هیچ فایلی برای دانلود وجود ندارد.")
-            return
-        
-        text = "📥 انتخاب فایل برای دانلود:\n\n"
-        keyboard = []
-        
-        for i, file in enumerate(files[:10]):  # Limit to 10 files
-            text += f"{i+1}. 📄 {file['file_name']}\n"
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"📥 {file['file_name'][:20]}...",
-                    callback_data=f"download_{file['file_id']}"
-                )
-            ])
-        
-        keyboard.append([InlineKeyboardButton("🔙 بازگشت", callback_data="my_files")])
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await update.callback_query.edit_message_text(text, reply_markup=reply_markup)
     
     async def download_file(self, update: Update, context: ContextTypes.DEFAULT_TYPE, file_id: str):
         """Download a file"""
