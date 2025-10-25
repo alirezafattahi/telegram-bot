@@ -265,6 +265,20 @@ phone: your_phone_number
         """
         await update.message.reply_text(text)
     
+    async def show_edit_profile_options(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show edit profile options for callback queries"""
+        text = """
+✏️ برای به‌روزرسانی پروفایل، لطفاً اطلاعات زیر را ارسال کنید:
+
+📧 ایمیل: example@email.com
+📱 شماره تلفن: 09123456789
+
+فرمت: 
+email: your_email@example.com
+phone: your_phone_number
+        """
+        await update.callback_query.edit_message_text(text)
+    
     async def handle_text(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle text messages for profile updates"""
         text = update.message.text.lower()
@@ -605,7 +619,7 @@ phone: your_phone_number
         elif query.data == "view_db":
             await self.view_database_command(update, context)
         elif query.data == "edit_profile":
-            await self.update_profile_command(update, context)
+            await self.show_edit_profile_options(update, context)
         elif query.data.startswith("send_photo_"):
             file_id = query.data.split("_")[2]
             await self.send_stored_photo(update, context, file_id)
@@ -644,7 +658,7 @@ phone: your_phone_number
             conn.close()
             
             if not file_data:
-                await update.callback_query.edit_message_text("❌ فایل یافت نشد.")
+                await update.callback_query.answer("❌ فایل یافت نشد.")
                 return
             
             # Send the file
@@ -657,7 +671,7 @@ phone: your_phone_number
             await update.callback_query.answer("✅ فایل ارسال شد!")
             
         except Exception as e:
-            await update.callback_query.edit_message_text(f"❌ خطا در دانلود فایل: {str(e)}")
+            await update.callback_query.answer(f"❌ خطا در دانلود فایل: {str(e)}")
     
     async def delete_file(self, update: Update, context: ContextTypes.DEFAULT_TYPE, file_id: str):
         """Delete a file from database"""
@@ -668,10 +682,10 @@ phone: your_phone_number
             conn.commit()
             conn.close()
             
-            await update.callback_query.edit_message_text("✅ فایل حذف شد.")
+            await update.callback_query.answer("✅ فایل حذف شد.")
             
         except Exception as e:
-            await update.callback_query.edit_message_text(f"❌ خطا در حذف فایل: {str(e)}")
+            await update.callback_query.answer(f"❌ خطا در حذف فایل: {str(e)}")
     
     async def backup_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /backup command"""
@@ -719,7 +733,10 @@ phone: your_phone_number
             conn.close()
             
             if not file_data:
-                await update.message.reply_text("❌ فایل یافت نشد.")
+                if hasattr(update, 'callback_query') and update.callback_query:
+                    await update.callback_query.answer("❌ فایل یافت نشد.")
+                else:
+                    await update.message.reply_text("❌ فایل یافت نشد.")
                 return
             
             # Get file from Telegram
@@ -729,7 +746,10 @@ phone: your_phone_number
             # Download file
             response = requests.get(f"https://api.telegram.org/file/bot{self.token}/{file_url}")
             if response.status_code != 200:
-                await update.message.reply_text("❌ خطا در دانلود فایل از تلگرام.")
+                if hasattr(update, 'callback_query') and update.callback_query:
+                    await update.callback_query.answer("❌ خطا در دانلود فایل از تلگرام.")
+                else:
+                    await update.message.reply_text("❌ خطا در دانلود فایل از تلگرام.")
                 return
             
             # Create backup directory
@@ -755,15 +775,24 @@ phone: your_phone_number
             conn.commit()
             conn.close()
             
-            await update.message.reply_text(
+            success_message = (
                 f"✅ فایل با موفقیت بکاپ شد!\n"
                 f"📄 نام فایل: {file_name}\n"
                 f"💾 مسیر بکاپ: {backup_path}\n"
                 f"📊 حجم: {len(response.content)} بایت"
             )
             
+            if hasattr(update, 'callback_query') and update.callback_query:
+                await update.callback_query.answer(success_message)
+            else:
+                await update.message.reply_text(success_message)
+            
         except Exception as e:
-            await update.message.reply_text(f"❌ خطا در بکاپ فایل: {str(e)}")
+            error_message = f"❌ خطا در بکاپ فایل: {str(e)}"
+            if hasattr(update, 'callback_query') and update.callback_query:
+                await update.callback_query.answer(error_message)
+            else:
+                await update.message.reply_text(error_message)
     
     async def backup_all_files(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Backup all user files"""
@@ -771,10 +800,10 @@ phone: your_phone_number
         files = self.get_user_files(user_id)
         
         if not files:
-            await update.callback_query.edit_message_text("📭 هیچ فایلی برای بکاپ وجود ندارد.")
+            await update.callback_query.answer("📭 هیچ فایلی برای بکاپ وجود ندارد.")
             return
         
-        await update.callback_query.edit_message_text("⏳ در حال بکاپ فایل‌ها... لطفاً صبر کنید.")
+        await update.callback_query.answer("⏳ در حال بکاپ فایل‌ها... لطفاً صبر کنید.")
         
         success_count = 0
         error_count = 0
@@ -787,11 +816,12 @@ phone: your_phone_number
                 error_count += 1
                 logger.error(f"Error backing up file {file['file_id']}: {str(e)}")
         
-        await update.callback_query.edit_message_text(
+        final_message = (
             f"✅ بکاپ کامل شد!\n"
             f"✅ موفق: {success_count} فایل\n"
             f"❌ خطا: {error_count} فایل"
         )
+        await update.callback_query.answer(final_message)
     
     def run(self):
         """Start the bot"""
