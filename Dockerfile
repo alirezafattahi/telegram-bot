@@ -1,0 +1,47 @@
+# Use Python 3.11 slim image
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    sqlite3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements-docker.txt requirements.txt
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Create directory for database
+RUN mkdir -p /app/data
+
+# Set permissions
+RUN chmod +x run_bot.py run_simple_bot.py database_viewer.py
+
+# Create non-root user
+RUN useradd --create-home --shell /bin/bash botuser && \
+    chown -R botuser:botuser /app
+USER botuser
+
+# Expose port (if needed for webhooks)
+EXPOSE 8443
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python3 -c "import sqlite3; import os; conn = sqlite3.connect('/app/data/bot_database.db'); conn.close()" || exit 1
+
+# Default command
+CMD ["python3", "run_simple_bot.py"]

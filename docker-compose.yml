@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  telegram-bot:
+    build: .
+    container_name: telegram-bot
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - BOT_USERNAME=${BOT_USERNAME:-}
+      - DATABASE_PATH=/app/data/bot_database.db
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MAX_FILE_SIZE=${MAX_FILE_SIZE:-50}
+      - MAX_POLL_OPTIONS=${MAX_POLL_OPTIONS:-10}
+      - ADMIN_USER_IDS=${ADMIN_USER_IDS:-}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - bot-network
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sqlite3; conn = sqlite3.connect('/app/data/bot_database.db'); conn.close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  database-viewer:
+    build: .
+    container_name: telegram-bot-viewer
+    command: ["python3", "database_viewer.py"]
+    restart: "no"
+    environment:
+      - DATABASE_PATH=/app/data/bot_database.db
+    volumes:
+      - ./data:/app/data:ro
+    networks:
+      - bot-network
+    profiles:
+      - tools
+
+  bot-monitor:
+    build: .
+    container_name: telegram-bot-monitor
+    command: ["python3", "-c", "import time; import sqlite3; import os; print('Monitoring bot...'); time.sleep(3600)"]
+    restart: unless-stopped
+    environment:
+      - DATABASE_PATH=/app/data/bot_database.db
+    volumes:
+      - ./data:/app/data:ro
+    networks:
+      - bot-network
+    profiles:
+      - monitoring
+
+networks:
+  bot-network:
+    driver: bridge
+
+volumes:
+  bot-data:
+    driver: local
+  bot-logs:
+    driver: local

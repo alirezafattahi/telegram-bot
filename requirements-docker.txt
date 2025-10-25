@@ -1,0 +1,2 @@
+# Minimal requirements for Docker deployment
+python-telegram-bot==20.7
