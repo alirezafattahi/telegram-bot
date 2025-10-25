@@ -109,7 +109,6 @@ class TelegramBot:
         self.application.add_handler(CommandHandler("profile", self.profile_command))
         self.application.add_handler(CommandHandler("update_profile", self.update_profile_command))
         self.application.add_handler(CommandHandler("upload", self.upload_command))
-        self.application.add_handler(CommandHandler("download", self.download_command))
         self.application.add_handler(CommandHandler("my_files", self.my_files_command))
         self.application.add_handler(CommandHandler("send_photo", self.send_photo_command))
         self.application.add_handler(CommandHandler("create_poll", self.create_poll_command))
