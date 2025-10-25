@@ -592,6 +592,14 @@ phone: your_phone_number
         elif query.data.startswith("send_photo_"):
             file_id = query.data.split("_")[2]
             await self.send_stored_photo(update, context, file_id)
+        elif query.data == "download_file":
+            await self.show_download_options(update, context)
+        elif query.data.startswith("download_"):
+            file_id = query.data.split("_")[1]
+            await self.download_file(update, context, file_id)
+        elif query.data.startswith("delete_"):
+            file_id = query.data.split("_")[1]
+            await self.delete_file(update, context, file_id)
     
     async def send_stored_photo(self, update: Update, context: ContextTypes.DEFAULT_TYPE, file_id: str):
         """Send a stored photo"""
@@ -603,6 +611,72 @@ phone: your_phone_number
             )
         except Exception as e:
             await query.edit_message_text(f"❌ خطا در ارسال عکس: {str(e)}")
+    
+    async def show_download_options(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show download options for user files"""
+        user_id = update.effective_user.id
+        files = self.get_user_files(user_id)
+        
+        if not files:
+            await update.callback_query.edit_message_text("📭 هیچ فایلی برای دانلود وجود ندارد.")
+            return
+        
+        text = "📥 انتخاب فایل برای دانلود:\n\n"
+        keyboard = []
+        
+        for i, file in enumerate(files[:10]):  # Limit to 10 files
+            text += f"{i+1}. 📄 {file['file_name']}\n"
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"📥 {file['file_name'][:20]}...",
+                    callback_data=f"download_{file['file_id']}"
+                )
+            ])
+        
+        keyboard.append([InlineKeyboardButton("🔙 بازگشت", callback_data="my_files")])
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.callback_query.edit_message_text(text, reply_markup=reply_markup)
+    
+    async def download_file(self, update: Update, context: ContextTypes.DEFAULT_TYPE, file_id: str):
+        """Download a file"""
+        try:
+            # Get file info from database
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM files WHERE telegram_file_id = ?', (file_id,))
+            file_data = cursor.fetchone()
+            conn.close()
+            
+            if not file_data:
+                await update.callback_query.edit_message_text("❌ فایل یافت نشد.")
+                return
+            
+            # Send the file
+            await context.bot.send_document(
+                chat_id=update.effective_chat.id,
+                document=file_id,
+                caption=f"📥 {file_data[2]}"  # file_name
+            )
+            
+            await update.callback_query.answer("✅ فایل ارسال شد!")
+            
+        except Exception as e:
+            await update.callback_query.edit_message_text(f"❌ خطا در دانلود فایل: {str(e)}")
+    
+    async def delete_file(self, update: Update, context: ContextTypes.DEFAULT_TYPE, file_id: str):
+        """Delete a file from database"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM files WHERE telegram_file_id = ?', (file_id,))
+            conn.commit()
+            conn.close()
+            
+            await update.callback_query.edit_message_text("✅ فایل حذف شد.")
+            
+        except Exception as e:
+            await update.callback_query.edit_message_text(f"❌ خطا در حذف فایل: {str(e)}")
     
     def run(self):
         """Start the bot"""
