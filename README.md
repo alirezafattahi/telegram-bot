@@ -59,7 +59,7 @@ pip install -r requirements.txt
 
 4. **تنظیم متغیر محیطی:**
 ```bash
-export TELEGRAM_BOT_TOKEN='8380664568:AAHl1HJsaWN0Gb7nHUJMPqxH4Y4uOjnDbLA'
+export TELEGRAM_BOT_TOKEN='TELEGRAM_BOT_TOKEN'
 ```
 
 5. **اجرای ربات:**
