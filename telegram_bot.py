@@ -265,6 +265,11 @@ phone: your_phone_number
         text = update.message.text.lower()
         user_id = update.effective_user.id
         
+        # Check if it's a command (starts with /)
+        if text.startswith('/'):
+            # Let command handlers deal with it
+            return
+        
         if "email:" in text or "phone:" in text:
             await self.process_profile_update(update, text, user_id)
         else:
