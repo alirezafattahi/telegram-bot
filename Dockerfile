@@ -29,7 +29,7 @@ COPY . .
 RUN mkdir -p /app/data
 
 # Set permissions
-RUN chmod +x run_bot.py run_simple_bot.py database_viewer.py
+RUN chmod +x database_viewer.py
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash botuser && \
@@ -44,4 +44,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python3 -c "import sqlite3; import os; conn = sqlite3.connect('/app/data/bot_database.db'); conn.close()" || exit 1
 
 # Default command
-CMD ["python3", "run_simple_bot.py"]
+CMD ["python3", "telegram_bot.py"]

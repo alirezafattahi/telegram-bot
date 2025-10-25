@@ -1,204 +1,323 @@
-# ربات تلگرام پیشرفته - Advanced Telegram Bot
+# 🐳 Docker Deployment Guide - راهنمای استقرار Docker
 
-یک ربات تلگرام کامل و پیشرفته با قابلیت‌های جامع برای مدیریت کاربران، فایل‌ها، عکس‌ها و نظرسنجی‌ها.
+راهنمای کامل برای اجرای ربات تلگرام با Docker
 
-## ویژگی‌های ربات
+## 📋 پیش‌نیازها
 
-### 👤 مدیریت کاربران
-- ثبت‌نام خودکار کاربران
-- مدیریت پروفایل کاربری
-- ذخیره اطلاعات تماس (ایمیل، شماره تلفن)
-- آمار کاربران فعال
+### نصب Docker و Docker Compose
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install docker.io docker compose
 
-### 📁 مدیریت فایل‌ها
-- آپلود انواع فایل (اسناد، تصاویر، صوتی، ویدیو)
-- دانلود فایل‌های آپلود شده
-- مشاهده لیست فایل‌های کاربر
-- ذخیره اطلاعات فایل در دیتابیس
+# CentOS/RHEL
+sudo yum install docker docker compose
 
-### 📸 مدیریت عکس‌ها
-- آپلود عکس
-- ارسال عکس‌های ذخیره شده
-- گالری عکس‌های کاربر
+# یا با استفاده از Docker Desktop
+# دانلود از: https://www.docker.com/products/docker-desktop
+```
 
-### 📊 سیستم نظرسنجی
-- ایجاد نظرسنجی‌های چندگزینه‌ای
-- ذخیره پاسخ‌های کاربران
-- آمار نظرسنجی‌ها
+### بررسی نصب
+```bash
+docker --version
+docker compose --version
+```
 
-### 🗄️ دیتابیس و آمار
-- دیتابیس SQLite برای ذخیره اطلاعات
-- آمار کامل سیستم
-- مشاهده اطلاعات کاربران
-- گزارش‌گیری
+## 🚀 اجرای سریع
 
-## نصب و راه‌اندازی
-
-### پیش‌نیازها
-- Python 3.8 یا بالاتر
-- حساب تلگرام و ربات تلگرام
-
-### مراحل نصب
-
-1. **کلون کردن پروژه:**
+### 1️⃣ **کلون کردن پروژه**
 ```bash
 git clone <repository-url>
 cd telegram-bot
 ```
 
-2. **نصب وابستگی‌ها:**
+### 2️⃣ **تنظیم متغیرهای محیطی**
 ```bash
-pip install -r requirements.txt
+# کپی کردن فایل نمونه
+cp docker.env .env
+
+# ویرایش فایل .env
+nano .env
 ```
 
-3. **ایجاد ربات تلگرام:**
-   - به [@BotFather](https://t.me/BotFather) در تلگرام پیام دهید
-   - دستور `/newbot` را ارسال کنید
-   - نام و نام کاربری ربات را انتخاب کنید
-   - توکن ربات را کپی کنید
-
-4. **تنظیم متغیر محیطی:**
+### 3️⃣ **اجرای ربات**
 ```bash
-export TELEGRAM_BOT_TOKEN='TELEGRAM_BOT_TOKEN'
+# اجرای خودکار
+./docker-run.sh
+
+# یا اجرای دستی
+docker compose up -d
 ```
 
-5. **اجرای ربات:**
+## ⚙️ تنظیمات
+
+### فایل `.env`
 ```bash
-python telegram_bot.py
+# Bot Configuration
+TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+BOT_USERNAME=your_bot_username
+
+# Database Configuration
+DATABASE_PATH=/app/data/bot_database.db
+
+# Logging Configuration
+LOG_LEVEL=INFO
+
+# File Configuration
+MAX_FILE_SIZE=50
+MAX_POLL_OPTIONS=10
+
+# Admin Configuration
+ADMIN_USER_IDS=123456789,987654321
 ```
 
-## دستورات ربات
+## 🎯 دستورات Docker
 
-### دستورات اصلی
-- `/start` - شروع ربات و نمایش منوی اصلی
-- `/help` - نمایش راهنمای کامل
+### اجرای ربات
+```bash
+# اجرای کامل
+./docker-run.sh
 
-### مدیریت پروفایل
-- `/profile` - مشاهده پروفایل کاربری
-- `/update_profile` - به‌روزرسانی اطلاعات پروفایل
+# اجرای دستی
+docker compose up -d
 
-### مدیریت فایل‌ها
-- `/upload` - راهنمای آپلود فایل
-- `/download` - دانلود فایل‌های آپلود شده
-- `/my_files` - مشاهده فایل‌های کاربر
-
-### عکس‌ها
-- `/send_photo` - ارسال عکس از گالری
-
-### نظرسنجی
-- `/create_poll` - ایجاد نظرسنجی جدید
-
-### دیتابیس و آمار
-- `/view_database` - مشاهده آمار دیتابیس
-- `/admin_stats` - آمار مدیریتی
-
-## ساختار دیتابیس
-
-### جدول users
-- `user_id` - شناسه کاربر
-- `username` - نام کاربری
-- `first_name` - نام
-- `last_name` - نام خانوادگی
-- `phone_number` - شماره تلفن
-- `email` - ایمیل
-- `registration_date` - تاریخ عضویت
-- `is_active` - وضعیت فعال بودن
-
-### جدول files
-- `file_id` - شناسه فایل
-- `user_id` - شناسه کاربر
-- `file_name` - نام فایل
-- `file_type` - نوع فایل
-- `file_size` - حجم فایل
-- `telegram_file_id` - شناسه فایل در تلگرام
-- `upload_date` - تاریخ آپلود
-
-### جدول polls
-- `poll_id` - شناسه نظرسنجی
-- `user_id` - شناسه کاربر
-- `question` - سوال نظرسنجی
-- `options` - گزینه‌ها
-- `poll_type` - نوع نظرسنجی
-- `creation_date` - تاریخ ایجاد
-- `is_active` - وضعیت فعال بودن
-
-### جدول poll_responses
-- `response_id` - شناسه پاسخ
-- `poll_id` - شناسه نظرسنجی
-- `user_id` - شناسه کاربر
-- `selected_option` - گزینه انتخاب شده
-- `response_date` - تاریخ پاسخ
-
-## ویژگی‌های فنی
-
-- **زبان برنامه‌نویسی:** Python 3.8+
-- **فریمورک:** python-telegram-bot
-- **دیتابیس:** SQLite
-- **ساختار:** شی‌گرا (OOP)
-- **لاگ‌گیری:** کامل و جامع
-- **مدیریت خطا:** پیشرفته
-
-## امنیت
-
-- استفاده از متغیرهای محیطی برای توکن
-- اعتبارسنجی ورودی‌ها
-- مدیریت امن فایل‌ها
-- لاگ‌گیری تمام فعالیت‌ها
-
-## توسعه و سفارشی‌سازی
-
-### افزودن دستور جدید
-```python
-async def new_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # کد دستور جدید
-    pass
-
-# در setup_handlers اضافه کنید:
-self.application.add_handler(CommandHandler("new_command", self.new_command))
+# اجرای با لاگ
+docker compose up
 ```
 
-### افزودن جدول جدید
-```python
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS new_table (
-        id INTEGER PRIMARY KEY,
-        data TEXT
-    )
-''')
+### توقف ربات
+```bash
+# توقف کامل
+./docker-stop.sh
+
+# توقف دستی
+docker compose down
+
+# توقف و حذف volumes
+docker compose down -v
 ```
 
-## عیب‌یابی
+### مشاهده لاگ‌ها
+```bash
+# مشاهده لاگ‌ها
+./docker-logs.sh
+
+# مشاهده لاگ‌های زنده
+./docker-logs.sh -f
+
+# مشاهده لاگ‌های سرویس خاص
+./docker-logs.sh -s telegram-bot
+
+# مشاهده آخرین 50 خط
+./docker-logs.sh -n 50
+```
+
+### مدیریت سرویس‌ها
+```bash
+# مشاهده وضعیت
+docker compose ps
+
+# راه‌اندازی مجدد
+docker compose restart
+
+# مشاهده دیتابیس
+docker compose --profile tools run database-viewer
+
+# مانیتورینگ
+docker compose --profile monitoring up bot-monitor
+```
+
+## 🔧 تنظیمات پیشرفته
+
+### Docker Compose Profiles
+
+#### سرویس اصلی (پیش‌فرض)
+```bash
+docker compose up -d
+```
+
+#### ابزارها (Tools)
+```bash
+docker compose --profile tools up database-viewer
+```
+
+#### مانیتورینگ (Monitoring)
+```bash
+docker compose --profile monitoring up bot-monitor
+```
+
+### تنظیمات Volume
+```yaml
+volumes:
+  - ./data:/app/data          # دیتابیس
+  - ./logs:/app/logs          # لاگ‌ها
+```
+
+### تنظیمات Network
+```yaml
+networks:
+  bot-network:
+    driver: bridge
+```
+
+## 📊 مانیتورینگ
+
+### Health Check
+```bash
+# بررسی وضعیت سلامت
+docker compose ps
+
+# بررسی لاگ‌های سلامت
+docker compose logs telegram-bot | grep health
+```
+
+### آمار استفاده
+```bash
+# آمار منابع
+docker stats
+
+# آمار سرویس خاص
+docker stats telegram-bot
+```
+
+## 🛠️ عیب‌یابی
 
 ### مشکلات رایج
 
-1. **خطای توکن:**
-   - بررسی صحت توکن ربات
-   - اطمینان از تنظیم متغیر محیطی
+#### 1. خطای "Container not found"
+```bash
+# بررسی containers
+docker ps -a
 
-2. **خطای دیتابیس:**
-   - بررسی دسترسی‌های فایل
-   - بررسی فضای دیسک
+# راه‌اندازی مجدد
+docker compose up -d
+```
 
-3. **خطای شبکه:**
-   - بررسی اتصال اینترنت
-   - بررسی فایروال
+#### 2. خطای "Permission denied"
+```bash
+# تنظیم مجوزها
+chmod +x docker-*.sh
 
-## مشارکت
+# اجرا با sudo (در صورت نیاز)
+sudo docker compose up -d
+```
 
-برای مشارکت در پروژه:
-1. Fork کنید
-2. شاخه جدید ایجاد کنید
-3. تغییرات را commit کنید
-4. Pull Request ارسال کنید
+#### 3. خطای "Port already in use"
+```bash
+# بررسی پورت‌های استفاده شده
+netstat -tulpn | grep :8443
 
-## مجوز
+# تغییر پورت در docker compose.yml
+```
 
-این پروژه تحت مجوز MIT منتشر شده است.
+#### 4. خطای "Database locked"
+```bash
+# توقف سرویس
+docker compose down
 
-## پشتیبانی
+# حذف دیتابیس (در صورت نیاز)
+rm -f data/bot_database.db
 
-برای پشتیبانی و گزارش باگ، لطفاً issue ایجاد کنید.
+# راه‌اندازی مجدد
+docker compose up -d
+```
+
+### لاگ‌های خطا
+```bash
+# مشاهده تمام لاگ‌ها
+docker compose logs
+
+# مشاهده لاگ‌های خطا
+docker compose logs | grep ERROR
+
+# مشاهده لاگ‌های اخیر
+docker compose logs --tail=100
+```
+
+## 🔄 به‌روزرسانی
+
+### به‌روزرسانی کد
+```bash
+# دریافت آخرین تغییرات
+git pull
+
+# ساخت مجدد image
+docker compose build
+
+# راه‌اندازی مجدد
+docker compose up -d
+```
+
+### به‌روزرسانی Docker
+```bash
+# به‌روزرسانی Docker
+sudo apt update && sudo apt upgrade docker.io
+
+# به‌روزرسانی Docker Compose
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker compose
+sudo chmod +x /usr/local/bin/docker compose
+```
+
+## 📁 ساختار فایل‌ها
+
+```
+telegram-bot/
+├── Dockerfile                 # Docker image definition
+├── docker compose.yml        # Docker Compose configuration
+├── .dockerignore            # Docker ignore file
+├── docker.env              # Environment template
+├── docker-run.sh           # Run script
+├── docker-stop.sh          # Stop script
+├── docker-logs.sh          # Logs script
+├── data/                   # Database directory
+├── logs/                   # Logs directory
+└── src/                    # Source code
+```
+
+## 🚀 Production Deployment
+
+### تنظیمات Production
+```yaml
+# docker compose.prod.yml
+version: '3.8'
+services:
+  telegram-bot:
+    restart: always
+    environment:
+      - LOG_LEVEL=WARNING
+    volumes:
+      - /var/lib/telegram-bot/data:/app/data
+      - /var/lib/telegram-bot/logs:/app/logs
+```
+
+### اجرای Production
+```bash
+docker compose -f docker compose.yml -f docker compose.prod.yml up -d
+```
+
+## 📞 پشتیبانی
+
+### گزارش مشکل
+1. بررسی لاگ‌ها: `./docker-logs.sh`
+2. بررسی وضعیت: `docker compose ps`
+3. بررسی منابع: `docker stats`
+4. گزارش مشکل با جزئیات
+
+### دستورات مفید
+```bash
+# پاک‌سازی کامل
+docker compose down -v --rmi all
+
+# بازسازی کامل
+docker compose build --no-cache
+
+# مشاهده حجم استفاده
+docker system df
+
+# پاک‌سازی سیستم
+docker system prune -a
+```
 
 ---
 
-**نکته:** این ربات برای استفاده آموزشی و تجاری طراحی شده و قابلیت توسعه و سفارشی‌سازی دارد.
+**نکته:** این راهنما برای اجرای ربات در محیط Docker طراحی شده است. برای اجرای محلی، از راهنمای اصلی استفاده کنید.
